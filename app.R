@@ -22,10 +22,10 @@ ui = dashboardPage(
   ), # close dashboard header
 
   ## Sidebar Menu
-  dashboardSidebar(width = 150, sidebarMenu(
-      # menuItem("Home", tabName = "home", icon = icon("home")),
-      menuItem("Widgets", tabName = "widgets", icon = icon("tasks")),
-      menuItem("Charts", tabName = "charts", icon = icon("table"))
+  dashboardSidebar(width = 150, collapsed = FALSE, sidebarMenu(
+      menuItem("Home", tabName = "home", icon = icon("home")),
+      menuItem("Widgets", tabName = "widgets", icon = icon("tasks"))
+      # menuItem("Charts", tabName = "charts", icon = icon("table"))
   )), # close sidebar menu
 
   ## Dashboard Body
@@ -34,12 +34,12 @@ ui = dashboardPage(
     ## Tab Items Pages
     tabItems(
 
-      # ## Home
-      # tabItem(tabName = "home",
-      #         box(height = NULL, width = NULL,
-      #             leaflet(height = "890px") %>%
-      #                 addTiles() %>%
-      #                 setView(-73.87, 40.73, zoom = 11))), # close home page
+      ## Home
+      tabItem(tabName = "home",
+              box(height = NULL, width = NULL,
+                  leaflet(height = "890px") %>%
+                      addTiles() %>%
+                      setView(-73.87, 40.73, zoom = 11))), # close home page
 
       ## Widgets
       tabItem(tabName = "widgets",
@@ -56,9 +56,10 @@ ui = dashboardPage(
                      box(width = NULL, status = "warning",
                          selectInput("boro", "Borough",
                                      choices = c("Manhattan", "Brooklyn", "Queens"), selected = "Manhattan"),
-                         
-                         selectInput("neighborhood", "Neighborhood",
-                                     choices = c("Chelsea", "Long Island City", "Bushwick"), selected = "Chelsea"),
+
+                         uiOutput("neighborhoodSelect"),
+                         # selectInput("neighborhood", "Neighborhood",
+                         #             choices = c("Chelsea", "Long Island City", "Bushwick"), selected = "Chelsea"),
 
                          selectInput("saleType", "Type of Sales",
                                      choices = c("Condo", "Townhouse/Single Family"), selected = "Condo"),
@@ -67,14 +68,14 @@ ui = dashboardPage(
                                      choices = c("Studio", "1 Bedroom", "2 Bedrooms", "3+ Bedrooms"),
                                      selected = "1 Bedroom")
                          ), # close input selector box
-                     
+
                      # Add some white spaces
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
-                     br(),
+                     # br(),
+                     # br(),
+                     # br(),
+                     # br(),
+                     # br(),
+                     # br(),
 
                      # Infoboxes
                      fluidRow(infoBox("Current Month, Number of Listing", "232",
@@ -87,54 +88,67 @@ ui = dashboardPage(
                                       fill = TRUE, width = NULL, col = "black", icon = icon("money"))
                               ) # close infoboxes
                      ) # close column
-              ), # close widget page
-      tabItem(tabName = "charts", h2("charts"))
+              ) # close widget page
+      # tabItem(tabName = "charts", h2("charts"))
       ) # close tab item
     ) # close body
 ) # end UI
 
 ### Server ###
 server = function(input, output) {
-    
+
+    ## Reactive functions
+    # Locations availbale by Borough, Neighborhood, longitude and latitude
+    locationList = reactive({
+        StreetEasyCombined %>%
+            select(Boro, Area) %>%
+            distinct() %>%
+            inner_join(nyc_neighborhoods@data$neighborhood %>% as.data.frame() %>% distinct() %>% setNames("Area") %>% mutate(Area = as.character(Area)), by = "Area") %>%
+            left_join(., GeoCode, by = c("Boro", "Area"))
+    })
+
+    # Pricing History for Sales listings
     SalePriceInfo = reactive({
-        StreetEasyCombined %>% 
-            select(., Area, time, 
-                   condoMedAskPrice, 
-                   condoMedSalePrice, 
-                   sfMedAskPrice, 
-                   sfMedSalePrice) %>% 
-            group_by(., Area) %>% 
-            arrange(., time) %>% 
+        StreetEasyCombined %>%
+            select(., Area, time,
+                   condoMedAskPrice,
+                   condoMedSalePrice,
+                   sfMedAskPrice,
+                   sfMedSalePrice) %>%
+            group_by(., Area) %>%
+            arrange(., time) %>%
             filter(., Area == input$neighborhood)
     })
 
+    # Pricing History for Rental Listings
     RentalPriceInfo = reactive({
-        StreetEasyCombined %>% 
-            select(., Area, time, 
-                   rentalStudioMedPrice, 
-                   rentalOneBdMedPrice, 
-                   rentalTwoBdMedPrice, 
-                   rentalThreeBdMedPrice) %>% 
-            group_by(., Area) %>% 
-            arrange(., time) %>% 
+        StreetEasyCombined %>%
+            select(., Area, time,
+                   rentalStudioMedPrice,
+                   rentalOneBdMedPrice,
+                   rentalTwoBdMedPrice,
+                   rentalThreeBdMedPrice) %>%
+            group_by(., Area) %>%
+            arrange(., time) %>%
             filter(., Area == input$neighborhood)
     })
-    
+
+    ## Console output for event listening
     observeEvent(input$neighborhood, {
         print(paste0("You have chosen: ", input$neighborhood))
         print(paste0("Median Rental Price: ", getRentalMedRent(input$rentalType)))
     })
 
-    
+    ## Helper functions
+    # Return longitude and latitude based on location selected, for map output
     getLatLon = function (area) {
-        StreetEasyCombined %>% 
-            filter(Area == area) %>% 
-            head(1) %>% 
-            left_join(GeoCode, by = "Area") %>% 
-            select(lon, lat) %>% 
+        locationList() %>%
+            filter(Area == area) %>%
+            select(lon, lat) %>%
             return()
     }
-    
+
+    # Return rental median price, for infoBox rendering
     getRentalMedRent = function(type) {
         if (type == "None") {"No Rental Type Selected"}
         else if (type == "Studio") {
@@ -146,51 +160,64 @@ server = function(input, output) {
         else if (type == "3+ Bedrooms") {
             RentalPriceInfo() %>% ungroup() %>% select(rentalThreeBdMedPrice) %>% tail(1) %>% as.numeric()}
     }
-    
+
+    ## Plot renders
+    # Render the leaflet plot for showing the location of the selected neighborhood
     output$mapPlot = renderLeaflet({
         if (input$neighborhood == "None") {
             leaflet(height = "400px") %>%
                 addTiles() %>%
                 setView(-73.87, 40.73, zoom = 10)
         } else {
-            nyc_neighborhoods[nyc_neighborhoods@data$neighborhood == input$neighborhood,] %>% 
+            nyc_neighborhoods[nyc_neighborhoods@data$neighborhood == input$neighborhood,] %>%
                 leaflet(height = "400px") %>%
                 addTiles() %>%
-                setView(getLatLon(input$neighborhood)$lon, getLatLon(input$neighborhood)$lat, zoom = 13) %>% 
-                addPolygons(popup = ~neighborhood, weight = 1, smoothFactor = 0.5)
+                setView(getLatLon(input$neighborhood)$lon, getLatLon(input$neighborhood)$lat, zoom = 13) %>%
+                addPolygons(popup = ~neighborhood,
+                            weight = 1,
+                            fillColor = "Green", fillOpacity = 0.35)
         }
     })
 
+    # Render the line plot for historical sale price information
     output$salePricePlot = renderPlotly({
         if (input$neighborhood == "None") {plotly_empty()} else {
-            SalePriceInfo() %>% ungroup() %>% 
+            SalePriceInfo() %>% ungroup() %>%
                 plot_ly(., x = ~time, y = ~condoMedAskPrice, type = "scatter", mode = "lines+markers", name = "Condo Ask", connectgaps = TRUE) %>%
                 add_trace(., x = ~time, y = ~condoMedSalePrice, mode = "lines+markers", name = "Condo Sale", connectgaps = TRUE) %>%
                 # add_trace(., x = ~time, y = ~sfMedAskPrice, mode = "lines+markers", name = "Townhouse/SF Ask", connectgaps = TRUE) %>%
-                # add_trace(., x = ~time, y = ~sfMedSalePrice, mode = "lines+markers", name = "Townhouse/SF Sale", connectgaps = TRUE) %>% 
+                # add_trace(., x = ~time, y = ~sfMedSalePrice, mode = "lines+markers", name = "Townhouse/SF Sale", connectgaps = TRUE) %>%
                 layout(legend = list(x = 0, y = -0.5, orientation = "h"),
-                       xaxis = list(title=""), 
+                       xaxis = list(title=""),
                        yaxis = list(title=""),
                        hovermode = "compare")}
     })
-    
+
+    # Render the line plot for historical rental price information
     output$rentalPricePlot = renderPlotly({
         if (input$neighborhood == "None") {plotly_empty()} else {
-            RentalPriceInfo() %>% 
+            RentalPriceInfo() %>%
                 plot_ly(., x = ~time, y = ~rentalStudioMedPrice, type = "scatter", mode = "lines+markers", name = "Studio") %>%
                 add_trace(., x = ~time, y = ~rentalOneBdMedPrice, mode = "lines+markers", name = "One Bedroom") %>%
                 add_trace(., x = ~time, y = ~rentalTwoBdMedPrice, mode = "lines+markers", name = "Two Bedroom") %>%
-                add_trace(., x = ~time, y = ~rentalThreeBdMedPrice, mode = "lines+markers", name = "Three Bedroom") %>% 
+                add_trace(., x = ~time, y = ~rentalThreeBdMedPrice, mode = "lines+markers", name = "Three Bedroom") %>%
                 layout(legend = list(x = 0, y = -0.5, orientation = "h"),
-                       xaxis = list(title=""), 
+                       xaxis = list(title=""),
                        yaxis = list(title=""),
                        hovermode = "compare")}
     })
-    
+
+    # render the infoBox text
     output$rentalRent = renderText({
         getRentalMedRent(input$rentalType)
     })
     
+    # render the neighborhood selector input
+    output$neighborhoodSelect = renderUI({
+        selectInput("neighborhood", "Neighborhood",
+                    choices = locationList() %>% filter(Boro == input$boro) %>% select(Area) %>% pull())
+    })
+
 } # end server
 
 ### Run ###
