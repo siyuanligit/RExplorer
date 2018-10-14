@@ -37,7 +37,7 @@ ui = dashboardPage(
       ## Home
       tabItem(tabName = "home",
               box(height = NULL, width = NULL,
-                  leaflet(height = "890px") %>%
+                  leaflet(height = "850px") %>%
                       addTiles() %>%
                       setView(-73.87, 40.73, zoom = 11))), # close home page
 
@@ -162,6 +162,13 @@ server = function(input, output) {
     }
 
     ## Plot renders
+    # render the neighborhood selector input
+    output$neighborhoodSelect = renderUI({
+        selectInput("neighborhood", "Neighborhood",
+                    choices = c("None", locationList() %>% filter(Boro == input$boro) %>% select(Area) %>% pull()),
+                    selected = "None")
+    })
+    
     # Render the leaflet plot for showing the location of the selected neighborhood
     output$mapPlot = renderLeaflet({
         if (input$neighborhood == "None") {
@@ -210,12 +217,6 @@ server = function(input, output) {
     # render the infoBox text
     output$rentalRent = renderText({
         getRentalMedRent(input$rentalType)
-    })
-    
-    # render the neighborhood selector input
-    output$neighborhoodSelect = renderUI({
-        selectInput("neighborhood", "Neighborhood",
-                    choices = locationList() %>% filter(Boro == input$boro) %>% select(Area) %>% pull())
     })
 
 } # end server
