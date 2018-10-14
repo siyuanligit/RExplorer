@@ -45,10 +45,13 @@ ui = dashboardPage(
       tabItem(tabName = "widgets",
               column(width = 9,
                      # Main View Box
-                     box(width = NULL, status = "danger", height = 425, leafletOutput("mapPlot")),
+                     box(width = NULL, status = "danger", height = 400, leafletOutput("mapPlot")),
                      fluidRow(
-                         box(width = 6, status = "success", plotlyOutput("salePricePlot")),
-                         box(width = 6, status = "success", plotlyOutput("rentalPricePlot")))
+                         tabBox(title = "Sales Historical Info", height = 425, width = 6,
+                                tabPanel("Summary", "content"),
+                                tabPanel("Chart", plotlyOutput("salePricePlot", height = 400))),
+                         # box(width = 6, status = "success", title = "Sales, Median Asking & Sale Price($)", plotlyOutput("salePricePlot")),
+                         box(width = 6, status = "success", title = "Rental, Median Listing Price ($)", plotlyOutput("rentalPricePlot")))
                      ), # close main view box
               column(width = 3,
 
@@ -61,8 +64,8 @@ ui = dashboardPage(
                          # selectInput("neighborhood", "Neighborhood",
                          #             choices = c("Chelsea", "Long Island City", "Bushwick"), selected = "Chelsea"),
 
-                         selectInput("saleType", "Type of Sales",
-                                     choices = c("Condo", "Townhouse/Single Family"), selected = "Condo"),
+                         # selectInput("saleType", "Type of Sales",
+                         #             choices = c("Condo", "Townhouse/Single Family"), selected = "Condo"),
 
                          selectInput("rentalType", "Type of Rental",
                                      choices = c("Studio", "1 Bedroom", "2 Bedrooms", "3+ Bedrooms"),
@@ -70,18 +73,19 @@ ui = dashboardPage(
                          ), # close input selector box
 
                      # Add some white spaces
-                     # br(),
-                     # br(),
-                     # br(),
-                     # br(),
-                     # br(),
-                     # br(),
+                     br(),
+                     br(),
+                     br(),
+                     br(),
+                     br(),
 
                      # Infoboxes
-                     fluidRow(infoBox("Current Month, Number of Listing", "232",
-                                      fill = TRUE, width = NULL, col = "blue", icon = icon("list")),
-                              infoBox("Current Month, Median Sale Price", "2,500,000",
-                                      fill = TRUE, width = NULL, col = "light-blue"),
+                     fluidRow(infoBox("Current Month, Median Sales List Price", textOutput("saleAskPrice"),
+                                      fill = TRUE, width = NULL, col = "blue"),
+                              infoBox("Current Month, Median Sales Sale Price", textOutput("saleSalePrice"),
+                                      fill = TRUE, width = NULL, col = "blue"),
+                              infoBox("Current Month, Number of Rental Listings", textOutput("rentalListing"),
+                                      fill = TRUE, width = NULL, col = "light-blue", icon = icon("list")),
                               infoBox("Current Month, Median Rental Price", textOutput("rentalRent"),
                                       fill = TRUE, width = NULL, col = "light-blue"),
                               infoBox("Expected Return of Investment in 1 year", "8%",
@@ -112,31 +116,40 @@ server = function(input, output) {
         StreetEasyCombined %>%
             select(., Area, time,
                    condoMedAskPrice,
-                   condoMedSalePrice,
-                   sfMedAskPrice,
-                   sfMedSalePrice) %>%
+                   condoMedSalePrice) %>%
             group_by(., Area) %>%
             arrange(., time) %>%
-            filter(., Area == input$neighborhood)
+            filter(., Area == input$neighborhood,
+                   !is.na(condoMedAskPrice),
+                   !is.na(condoMedSalePrice))
     })
 
     # Pricing History for Rental Listings
     RentalPriceInfo = reactive({
         StreetEasyCombined %>%
+            mutate(., inventory = rentalStudioInventory+rentalOneBdInventory+rentalTwoBdInventory+rentalThreeBdInventory) %>% 
             select(., Area, time,
                    rentalStudioMedPrice,
                    rentalOneBdMedPrice,
                    rentalTwoBdMedPrice,
-                   rentalThreeBdMedPrice) %>%
+                   rentalThreeBdMedPrice,
+                   inventory) %>%
             group_by(., Area) %>%
             arrange(., time) %>%
-            filter(., Area == input$neighborhood)
+            filter(., Area == input$neighborhood,
+                   !is.na(rentalStudioMedPrice),
+                   !is.na(rentalOneBdMedPrice),
+                   !is.na(rentalTwoBdMedPrice),
+                   !is.na(rentalThreeBdMedPrice))
     })
 
     ## Console output for event listening
     observeEvent(input$neighborhood, {
         print(paste0("You have chosen: ", input$neighborhood))
         print(paste0("Median Rental Price: ", getRentalMedRent(input$rentalType)))
+        print(paste0("nrow sales: ", SalePriceInfo() %>% nrow()))
+        print(paste0("list price sales: ", getSaleAskPrice()))
+        print(paste0("sale price sales: ", getSaleSalePrice()))
     })
 
     ## Helper functions
@@ -144,8 +157,15 @@ server = function(input, output) {
     getLatLon = function (area) {
         locationList() %>%
             filter(Area == area) %>%
-            select(lon, lat) %>%
-            return()
+            select(lon, lat)
+    }
+
+    getSaleAskPrice = function(){
+        SalePriceInfo() %>% ungroup() %>% select(condoMedAskPrice) %>% tail(1) %>% as.numeric()
+    }
+    
+    getSaleSalePrice = function(){
+        SalePriceInfo() %>% ungroup() %>% select(condoMedSalePrice) %>% tail(1) %>% as.numeric()
     }
 
     # Return rental median price, for infoBox rendering
@@ -159,6 +179,11 @@ server = function(input, output) {
             RentalPriceInfo() %>% ungroup() %>% select(rentalTwoBdMedPrice) %>% tail(1) %>% as.numeric()}
         else if (type == "3+ Bedrooms") {
             RentalPriceInfo() %>% ungroup() %>% select(rentalThreeBdMedPrice) %>% tail(1) %>% as.numeric()}
+    }
+    
+    # Return rental inventory, for infoBox rendering
+    getRentalInventory = function() {
+        RentalPriceInfo() %>% ungroup() %>% select(inventory) %>% tail(1) %>% as.numeric()
     }
 
     ## Plot renders
@@ -177,7 +202,7 @@ server = function(input, output) {
                 setView(-73.87, 40.73, zoom = 10)
         } else {
             nyc_neighborhoods[nyc_neighborhoods@data$neighborhood == input$neighborhood,] %>%
-                leaflet(height = "400px") %>%
+                leaflet(height = "380px") %>%
                 addTiles() %>%
                 setView(getLatLon(input$neighborhood)$lon, getLatLon(input$neighborhood)$lat, zoom = 13) %>%
                 addPolygons(popup = ~neighborhood,
@@ -188,7 +213,7 @@ server = function(input, output) {
 
     # Render the line plot for historical sale price information
     output$salePricePlot = renderPlotly({
-        if (input$neighborhood == "None") {plotly_empty()} else {
+        if (input$neighborhood == "None" | SalePriceInfo() %>% nrow() < 10) {plotly_empty()} else {
             SalePriceInfo() %>% ungroup() %>%
                 plot_ly(., x = ~time, y = ~condoMedAskPrice, type = "scatter", mode = "lines+markers", name = "Condo Ask", connectgaps = TRUE) %>%
                 add_trace(., x = ~time, y = ~condoMedSalePrice, mode = "lines+markers", name = "Condo Sale", connectgaps = TRUE) %>%
@@ -202,7 +227,7 @@ server = function(input, output) {
 
     # Render the line plot for historical rental price information
     output$rentalPricePlot = renderPlotly({
-        if (input$neighborhood == "None") {plotly_empty()} else {
+        if (input$neighborhood == "None" | RentalPriceInfo() %>% nrow() < 10) {plotly_empty()} else {
             RentalPriceInfo() %>%
                 plot_ly(., x = ~time, y = ~rentalStudioMedPrice, type = "scatter", mode = "lines+markers", name = "Studio") %>%
                 add_trace(., x = ~time, y = ~rentalOneBdMedPrice, mode = "lines+markers", name = "One Bedroom") %>%
@@ -215,6 +240,22 @@ server = function(input, output) {
     })
 
     # render the infoBox text
+    # median listing price
+    output$saleAskPrice = renderText({
+        getSaleAskPrice()
+    })
+    
+    # median sale price
+    output$saleSalePrice = renderText({
+        getSaleSalePrice()
+    })
+    
+    # amount of total listings
+    output$rentalListing = renderText({
+        getRentalInventory()
+    })
+    
+    # median rental price
     output$rentalRent = renderText({
         getRentalMedRent(input$rentalType)
     })
