@@ -1,0 +1,13 @@
+name: REexplorer
+title: REexplorer
+username:
+account: siyuanli
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 514938
+bundleId: 1643870
+url: https://siyuanli.shinyapps.io/REexplorer/
+when: 1539617931.57113
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: DataCleanUp.R|NbhGeocode.csv|README.md|StreetEasyCombined.csv|rawData

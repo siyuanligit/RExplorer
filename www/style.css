@@ -1,0 +1,16 @@
+@import url('//fonts.googleapis.com/css?family=Roboto');
+@import url('//fonts.googleapis.com/css?family=Bitter');
+
+.main-header .logo {
+    font-family: 'Bitter', serif, "Times New Roman", serif;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+h2, h3, h4, a, p{
+    font-family: 'Roboto', sans-serif;
+}
+
+p {
+    font-size: 16px;
+}

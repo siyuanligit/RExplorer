@@ -21,8 +21,7 @@ load("./neighborhoodPolygon.rdata")
 ui = dashboardPage(
 
   ## Dashboard Header
-  dashboardHeader(title = "RExplorer",
-                  dropdownMenuOutput("messageMenu")
+  dashboardHeader(title = "Property Investment Market Trend Visualization", titleWidth = 600
   ), # close dashboard header
 
   ## Sidebar Menu
@@ -34,7 +33,7 @@ ui = dashboardPage(
                        )), # close sidebar menu
 
   ## Dashboard Body
-  dashboardBody(
+  dashboardBody(tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
 
     ## Tab Items Pages
     tabItems(

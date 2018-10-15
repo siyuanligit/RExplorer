@@ -13,11 +13,11 @@ The date of the data point ranges from Jan, 2014 to Aug, 2018, aggregated monthl
 
 Boundary data of the neighborhoods are acquired from [data.beta.nyc](http://data.beta.nyc).
 
-## Why Median Price:
+### Why Median Price:
 
 The median is the value separating the higher half from the lower half of a data sample. Median is less affected by outliers and skewed sample which is typical in real estate data. It is a more accurate indicator of the market. 
 
-## How to use this webApp:
+### How to use this webApp:
 
 Start by clicking on the "Visualizaitons" tab on the side menu to go to the visualization page. Beware that it takes a little time to load so don't be startled by the error messages. Patience and voilà.
 
@@ -31,7 +31,7 @@ On the bottom right, there is a chart showing the rental prices for different pr
 
 You will notice a slider and selector below the location selectors, it is used to set a budget and a room count so that the tool will calculate a rough estimate of your mortgage payment, given a 30 year term and an annual rate of 5.04%. 
 
-## Future Works:
+### Future Works:
 
 - Still working on the map feature. The ideal is to show nearest neighborhood info on the map for comparison.
 - Dataset is not really complete for neighborhoods that brokers do not post listings on Streeteasy. Need more detailed and comprehensive data.
