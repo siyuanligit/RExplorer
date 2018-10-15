@@ -8,6 +8,8 @@ library(plotly)
 library(httr)
 library(rgdal)
 
+options(warn=-1)
+
 ### Load Data
 load("./neighborhoodPolygon.rdata")
 # StreetEasyCombined = read.csv("./StreetEasyCombined.csv", stringsAsFactors = FALSE)
@@ -59,6 +61,7 @@ ui = dashboardPage(
                                 tabPanel("Rental Chart", plotlyOutput("rentalPricePlot", height = 400))))
                      ), # close main view box
               column(width = 3,
+                     br(),
 
                      # Input Selector Box
                      box(width = NULL, status = "danger",
@@ -80,17 +83,17 @@ ui = dashboardPage(
                      # Add some white spaces
                      br(),
                      br(),
-                     br(),
 
                      # Infoboxes
                      fluidRow(infoBox("Past Year, Median Sales List Price", textOutput("saleAskPrice"),
                                       fill = TRUE, width = NULL, col = "blue"),
                               infoBox("Past Year, Median Sales Sale Price", textOutput("saleSalePrice"),
                                       fill = TRUE, width = NULL, col = "blue"),
+                              br(),
                               infoBox("Past Year, Median Rental Price", textOutput("rentalRent"),
                                       fill = TRUE, width = NULL, col = "light-blue"),
-                              infoBox("Expected Return of on Rent:", textOutput("roi"),
-                                      fill = TRUE, width = NULL, col = "black", icon = icon("money"))
+                              infoBox("Expected Monthly Mortgage Payment:", textOutput("mortgage"),
+                                      fill = TRUE, width = NULL, col = "light-blue", icon = icon("money"))
                               ) # close infoboxes
                      ) # close column
               ), # close widget page
@@ -156,6 +159,7 @@ server = function(input, output) {
                    !is.na(rentalThreeBdMedPrice))
     })
     
+    # reactive component for sales yearly summary
     SalesYearlySummary = reactive({
         SalePriceInfo() %>% 
             mutate(., year = format(as.Date(time), "%Y")) %>% 
@@ -166,6 +170,7 @@ server = function(input, output) {
             ungroup()
     })
     
+    # reactive component for rental yearly summary
     RentalYearlySummary = reactive({
         RentalPriceInfo() %>% 
             mutate(., year = format(as.Date(time), "%Y")) %>% 
@@ -253,6 +258,50 @@ server = function(input, output) {
                 median() %>% 
                 as.numeric()}
     }
+    
+    # return trend analysis for sales historical data
+    getSaleTrend = function(){
+        start = SalesYearlySummary() %>% select(medianSale) %>% head(1) %>% pull()
+        end2017 = SalesYearlySummary() %>% select(medianSale) %>% tail(2) %>% head(1) %>% pull()
+        if (end2017 > start & abs(end2017-start)>100000){
+            paste0(" has seen an <b>increase</b> of <b>", 
+                   round((end2017 - start)*100/start), 
+                   "%</b> over the last four years. ")
+        } else if (end2017 < start & abs(end2017-start)>100000){
+            paste0(" has seen an <b>decline</b> of <b>", 
+                   round((start - end2017)*100/start), 
+                   "%</b> over the last four years. ")
+        } else {
+            paste0(" has been stable over the last four years. ")
+        }
+    }
+    
+    # return median sale price for latest entry
+    getSale2018 = function(){
+        end2018 = SalePriceInfo() %>% select(condoMedSalePrice) %>% tail(1) %>% pull() %>% as.numeric()
+        paste0("The median sale price for <b>August 2018</b> is <b>", 
+               paste0("$", formatC(end2018, format="f", digits=2, big.mark=",")), 
+               "</b>. ")
+    }
+    
+    # predict property value
+    getPredict = function(){
+        tempDf = SalesYearlySummary() %>% 
+            select(year, medianSale) %>% 
+            pull() %>% 
+            cbind(1:5) %>% 
+            as.data.frame() %>% 
+            setNames(nm = c("price", "i"))
+        model = lm(price~i, data = tempDf)
+        rate = (model$coefficients[[1]] + model$coefficients[[2]])/model$coefficients[[1]]
+        paste0("Roughly estimated that the percentage change in property value is about <b>", 
+               round((rate-1)*100, digits = 2),
+               "%</b>. Based on the property value you selected, your estimated property value in <b>2019</b> is <b>",
+               paste0("$", formatC(input$budget*rate, format="f", digits=2, big.mark=",")),
+               "</b>. Estimated property value in <b>5 years</b> is <b>",
+               paste0("$", formatC(input$budget*rate^5, format="f", digits=2, big.mark=",")),
+               "</b>. ")
+    }
 
     ## Plot renders
     # render the neighborhood selector input
@@ -304,62 +353,40 @@ server = function(input, output) {
                        yaxis = list(title=""),
                        hovermode = "compare")}
     })
-
-    getSaleTrend = function(){
-        start = SalesYearlySummary() %>% select(medianSale) %>% head(1) %>% pull()
-        end2017 = SalesYearlySummary() %>% select(medianSale) %>% tail(2) %>% head(1) %>% pull()
-        if (end2017 > start & abs(end2017-start)>100000){
-            paste0(" has seen an <b>increase</b> of <b>", 
-                   round((end2017 - start)*100/start), 
-                   "%</b> over the last four years. ")
-        } else if (end2017 < start & abs(end2017-start)>100000){
-            paste0(" has seen an <b>decline</b> of <b>", 
-                   round((start - end2017)*100/start), 
-                   "%</b> over the last four years. ")
-        } else {
-            paste0(" has been stable over the last four years. ")
-        }
-    }
-    
-    getSale2018 = function(){
-        end2018 = SalePriceInfo() %>% select(condoMedSalePrice) %>% tail(1) %>% pull() %>% as.numeric()
-        paste0("<h3>The median sale price for August 2018 is ", 
-               paste0("$", formatC(end2018, format="f", digits=2, big.mark=",")), 
-               ".</h3>")
-    }
     
     # render sales summary
     output$SalesSummaryText = renderUI({
         if (input$neighborhood == "None") {
-            HTML("<h3>Please select a neighborhood.</h3>")
+            HTML("<h4>Please select a neighborhood.</h4>")
         } else if (SalePriceInfo() %>% nrow() < 10){
-            HTML("<h3>Not enough data.</h3>")
+            HTML("<h4>Not enough data.</h4>")
         } else {
             HTML(
-                paste(paste0("<h2>", input$neighborhood, "</h2>"), 
-                      paste0("<h3>", 
+                paste(paste0("<h3>", input$neighborhood, "</h3>"), 
+                      paste0("<h4>", 
                              "Median sale price for properties in ", 
                              input$neighborhood, 
                              getSaleTrend(),
-                             "</h3>"),  
-                      getSale2018(),
+                             "</h4>"),  
+                      paste0("<h4>", getSale2018(), "</h4>"),
+                      paste0("<h4>", getPredict(), "</h4>"),
                       sep="<br/>")
             )
         }
     })
     
     # render rental summary
-    output$RentalSummaryText = renderUI({
-        if (input$neighborhood == "None" | RentalPriceInfo() %>% nrow() < 10) {
-            HTML("<h4>Not enough data.</h4>")
-        } else {
-            HTML(
-                paste(paste0("<h4>", input$neighborhood, "</h4>"), 
-                      input$neighborhood, 
-                      sep="<br/>")
-            )
-        }
-    })
+    # output$RentalSummaryText = renderUI({
+    #     if (input$neighborhood == "None" | RentalPriceInfo() %>% nrow() < 10) {
+    #         HTML("<h4>Not enough data.</h4>")
+    #     } else {
+    #         HTML(
+    #             paste(paste0("<h4>", input$neighborhood, "</h4>"), 
+    #                   input$neighborhood, 
+    #                   sep="<br/>")
+    #         )
+    #     }
+    # })
     
     # render the infoBox text
     # median listing price
@@ -377,12 +404,13 @@ server = function(input, output) {
         paste0("$", formatC(getRentalMedRent(input$rentalType), format="f", digits=2, big.mark=","))
     })
     
-    # ROI
-    output$roi = renderText({
-        mortgageRate = (0.0504/12)/(1-((1+0.0504/12)^(-360)))
-        monthlyMortgage = input$budget*0.8*mortgageRate
-        rent = getRentalMedRent(input$rentalType)
-        paste(round((rent - monthlyMortgage)*100/input$budget), "%", sep = "")
+    # Mortgage
+    output$mortgage = renderText({
+        if (input$neighborhood == "None") {
+            "NA"
+        } else {
+            paste0("$", formatC(input$budget*0.8*(0.0504/12)/(1-((1+0.0504/12)^(-360))), format="f", digits=2, big.mark=","))
+        }
     })
     
 } # end server

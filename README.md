@@ -35,11 +35,11 @@ First, choose a borough and neighborhood from the right side of the page.
 
 Then, you will see that the neighborhood you selected will be highlighted on the map at the top of the page. 
 
-On the bottom left, there will be a brief summary of the market trend of property sales in your chosen neighborhood, whether it has been increasing or decreasing. You can also opt to see an interactive chart of Listing and Sale price over the years.
+On the bottom left, there will be a brief summary of the market trend of property sales in your chosen neighborhood, whether it has been increasing or decreasing. And it will provide a rough estimate on percentage change in property value, and value prediction for 2019 and 2023 (5 year). You can also opt to see an interactive chart of Listing and Sale price over the years.
 
 On the bottom right, there is a chart showing the rental prices for different properties types, whether it is a Studio, One Bedroom, or even Three+ Bedroom.
 
-You will notice a slider and selector below the location selectors, it is used to set a budget and a room count so that the tool will calculate a Return on Rent (%) for you  (the black box at the bottom right of the page). 
+You will notice a slider and selector below the location selectors, it is used to set a budget and a room count so that the tool will calculate a rough estimate of your mortgage payment, given a 30 year term and an annual rate of 5.04%. 
 
 ## Future Works:
 
