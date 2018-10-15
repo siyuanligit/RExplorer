@@ -110,7 +110,11 @@ ui = dashboardPage(
                      br(),
                      h4("Rental Real Estate Broker Assistant, Underwriting 2018"),
                      h4("Quantitative Analyst Intern, Mingshi Investment Management, Shanghai, China 2016"),
-                     h4("Investment Analyst Intern, Soochow Securities, Suzhou, Jiangsu, China 2015"))
+                     h4("Investment Analyst Intern, Soochow Securities, Suzhou, Jiangsu, China 2015"),
+                     br(),
+                     a(href="www.linkedin.com/in/siyuan-derek-li-b4663a49", "LinkedIn"),
+                     br(),
+                     a(href="github.com/siyuanligit", "Github"))
               ) # close about page
       ) # close tab item
     ) # close body
