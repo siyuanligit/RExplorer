@@ -1,4 +1,3 @@
-# RExplorer
 ## Property Investment Market Trend Visualization
 
 ### Introduction:
