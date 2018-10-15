@@ -4,6 +4,8 @@
 
 The purpose of this Shiny webApp is to better advise clients in residential property investments in New York City by visualizing sales and rental market trends in major areas.
 
+Check out the app [**HERE**](https://siyuanli.shinyapps.io/REexplorer/).
+
 ### Data:
 
 Sales and rental data are compiled from [OneBlockOver by Streeteasy](https://streeteasy.com/blog/download-data/). The dataset used in this webApp is combined using:
