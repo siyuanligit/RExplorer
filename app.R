@@ -96,6 +96,7 @@ ui = dashboardPage(
                               ) # close infoboxes
                      ) # close column
               ), # close widget page
+      # About Page
       tabItem(tabName = "about", 
               column(width = 1),
               column(width = 11,
@@ -377,19 +378,6 @@ server = function(input, output) {
             )
         }
     })
-    
-    # render rental summary
-    # output$RentalSummaryText = renderUI({
-    #     if (input$neighborhood == "None" | RentalPriceInfo() %>% nrow() < 10) {
-    #         HTML("<h4>Not enough data.</h4>")
-    #     } else {
-    #         HTML(
-    #             paste(paste0("<h4>", input$neighborhood, "</h4>"), 
-    #                   input$neighborhood, 
-    #                   sep="<br/>")
-    #         )
-    #     }
-    # })
     
     # render the infoBox text
     # median listing price
